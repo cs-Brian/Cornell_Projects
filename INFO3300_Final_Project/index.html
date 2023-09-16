@@ -1,0 +1,878 @@
+<html>
+
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/topojson.v3.min.js"></script>
+
+  <style>
+    .rectangle {
+      fill: #b30000;
+      stroke: black;
+      border-width: 5px;
+    }
+
+    .rectangle:hover {
+      fill: rgb(235, 155, 6);
+    }
+
+    .iconMen {
+      fill: white;
+    }
+
+    .iconWomen {
+      fill: orange;
+    }
+
+    .axis {
+      font: 10px sans-serif;
+    }
+
+    .axis path,
+    .axis line {
+      fill: none;
+      stroke: #000;
+      shape-rendering: crispEdges;
+    }
+
+    .state {
+      fill: lightgrey;
+    }
+
+    .outline {
+      stroke: black;
+      stroke-width: 1px;
+      fill: none;
+    }
+
+    .graticule {
+      fill: none;
+      stroke: grey;
+      stroke-width: 1px;
+    }
+
+    .colorbar {
+      font: 8px sans-serif;
+      color: black;
+      text-anchor: center;
+      font-weight: bold;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-gap: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="grid-container">
+    <div id="div1" style="background: rgb(247, 190, 146);">
+      <svg id="colorLegend" height="100" width="650" style=" margin-top:30px"></svg>
+      <br>
+      <p style="text-align: center; font-weight: bold;">
+        The map shows total incaration for each state
+        <br>
+        Click on a state to see its incarceration statistics in detail on the right
+      </p>
+      <svg id="choropleth" height="500" width="600"></svg>
+    </div>
+    <div id="div2">
+
+      <div
+        style="text-align: center; font-weight: bold; background-color: rgb(247, 190, 146); padding-top: 10px; padding-bottom: 10px;"
+        id="currState">
+        Total US
+      </div>
+      <p style="text-align: center; font-weight: bold;">
+        Incarceration by Race (per 100,000 people of that population)
+      </p>
+      <div style="text-align: end;">
+        <button type="button" id="allAge">Select All Ages</button>
+        <button type="button" id="juvenile">Select Juveniles Only</button>
+      </div>
+      <svg id="barSvg" width="600" height="400"></svg>
+      <br>
+      <div class="grid-container">
+        <div>
+          <p style="text-align: center; font-weight: bold;">
+            Incarceration Type
+          </p>
+          <br>
+          <svg id="pieSvg" width="300" height="300"></svg>
+        </div>
+        <div>
+          <p style="text-align: center; font-weight: bold;">
+            Incarceration by Gender
+          </p>
+          <br>
+          <svg id="personSvg" width="300" height="300"></svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <script>
+
+    const requestData = async function () {
+      ///////////////////////////////// Start Graph 4: Pictogram //////////////////
+
+      const pictoFile = await d3.csv("incarceration_data.csv");
+
+      // Get and Store Men and Women data across all states in seperate dictionaries
+      const pictoMenDict = pictoFile[1];
+      const pictoWomenDict = pictoFile[2];
+
+      // Set Constants
+      const svg4 = d3.select("#personSvg");
+      const width4 = svg4.attr("width");
+      const height4 = svg4.attr("height");
+
+      // Create temporary men and women values for drawing pictogram
+      var tempWomen = 20;
+      var tempMen = 80;
+
+      // Create Person Icon - Code adapted from http://bl.ocks.org/henryjameslau/3299be02d548f999c8ae01699ab1ead2
+      svg4.append("defs")
+        .append("g")
+        .attr("id", "personIcon")
+        .append("path")
+        .attr("d", "M3.5,2H2.7C3,1.8,3.3,1.5,3.3,1.1c0-0.6-0.4-1-1-1c-0.6,0-1,0.4-1,1c0,0.4,0.2,0.7,0.6,0.9H1.1C0.7,2,0.4,2.3,0.4,2.6v1.9c0,0.3,0.3,0.6,0.6,0.6h0.2c0,0,0,0.1,0,0.1v1.9c0,0.3,0.2,0.6,0.3,0.6h1.3c0.2,0,0.3-0.3,0.3-0.6V5.3c0,0,0-0.1,0-0.1h0.2c0.3,0,0.6-0.3,0.6-0.6V2.6C4.1,2.3,3.8,2,3.5,2z")
+        .attr("transform", `translate(0,0) scale(2.5)`);
+
+      var pictoBox = svg4.append("rect")
+        .attr("width", width4)
+        .attr("height", height4)
+        .attr("fill", "#b30000");
+
+      var numCols = 10;
+      var numRows = 10;
+
+      var xPadding = 50;
+      var yPadding = 50;
+
+      var hBuffer = 22;
+      var wBuffer = 20;
+
+      var myIndex = d3.range(numCols * numRows);
+
+      // Text element to display number of icons highlighted
+      var txtWomen = svg4.append("text")
+        .attr("id", "txtValue")
+        .attr("x", xPadding - 5)
+        .attr("y", yPadding - 10)
+        .attr("dy", -3)
+        .text(tempWomen + "% Women")
+        .style("fill", "orange")
+        .style("font-size", 18)
+        .style("font-family", "sans-serif,Helvetica,Arial")
+        .style("font-weight", "bold");
+
+      var txtAnd = svg4.append("text")
+        .attr("id", "txtValue")
+        .attr("x", xPadding + 105)
+        .attr("y", yPadding - 10)
+        .attr("dy", -3)
+        .text(" & ")
+        .style("fill", "black")
+        .style("font-size", 18)
+        .style("font-family", "sans-serif,Helvetica,Arial")
+        .style("font-weight", "bold");
+
+      var txtMen = svg4.append("text")
+        .attr("id", "txtValue")
+        .attr("x", xPadding + 124)
+        .attr("y", yPadding - 10)
+        .attr("dy", -3)
+        .text(tempMen + "% Men")
+        .style("fill", "white")
+        .style("font-size", 18)
+        .style("font-family", "sans-serif,Helvetica,Arial")
+        .style("font-weight", "bold");
+
+      // Draw Pictogram - Code adapted from http://bl.ocks.org/henryjameslau/3299be02d548f999c8ae01699ab1ead2
+      var picto = svg4.append("g")
+        .attr("id", "pictoLayer")
+        .selectAll("use")
+        .data(myIndex)
+        .enter()
+        .append("use")
+        .attr("xlink:href", "#personIcon")
+        .attr("id", function (d) {
+          return "icon" + d;
+        })
+        .attr("x", function (d) {
+          var remainder = d % numCols;
+          return xPadding + (remainder * wBuffer);
+        })
+        .attr("y", function (d) {
+          var whole = Math.floor(d / numCols)
+          return yPadding + (whole * hBuffer);
+        })
+        .attr("class", function (d) {
+          if (d < tempWomen) {
+            return "iconWomen";
+          } else {
+            return "iconMen";
+          }
+        });
+
+      // Function to update pictogram
+      function updatePicto(stateSelect) {
+        var pictoDataMen = pictoMenDict[stateSelect];
+
+        var pictoDataWomen = pictoWomenDict[stateSelect];
+        var pictoDataTotal = Number(pictoDataMen) + Number(pictoDataWomen);
+
+        var pictoWomen = ((pictoDataWomen / pictoDataTotal) * 100).toFixed(0);
+
+        var pictoMen = ((pictoDataMen / pictoDataTotal) * 100).toFixed(0);
+
+        picto.attr("class", function (d) {
+          if (d < pictoWomen) {
+            return "iconWomen";
+          } else {
+            return "iconMen";
+          }
+        });
+
+        txtWomen.text(pictoWomen + "% Women");
+        txtMen.text(pictoMen + "% Men");
+      }
+      ///////////////////////////////// End Graph 4: Pictogram //////////////////
+      ///////////////////////////////// Start Graph 2: Pie Chart ////////////////
+      // Load data file
+      const file = await d3.csv("incarceration_type.csv");
+
+      var svg2 = d3.select("#pieSvg"),
+        width = svg2.attr("width"),
+        height = svg2.attr("height"),
+        radius = Math.floor(height / 2 - 40);
+
+
+      // Create legend (we also reuse the same text elements for the click details)
+      var txt1 = svg2.append("text")
+        .attr("x", Math.floor(width / 2 - radius / 10))
+        .attr("y", Math.floor(height / 2 - radius / 5))
+        .text("")
+        .style("font-family", "arial")
+        .style("font-size", Math.floor(radius / 10));
+
+      var circ1 = svg2.append("circle")
+        .attr("r", radius / 20)
+        .attr("cx", width / 2 - radius / 5)
+        .attr("cy", height / 2 - radius / 5 - 5)
+        .attr("fill", '#CC5500');
+
+      var txt2 = svg2.append("text")
+        .attr("x", width / 2 - radius / 10)
+        .attr("y", height / 2)
+        .text("")
+        .style("font-family", "arial")
+        .style("font-size", radius / 10);
+
+      var circ2 = svg2.append("circle")
+        .attr("r", radius / 20)
+        .attr("cx", width / 2 - radius / 5)
+        .attr("cy", height / 2 - 5)
+        .attr("fill", 'black');
+
+      var txt3 = svg2.append("text")
+        .attr("x", width / 2 - radius / 10)
+        .attr("y", height / 2 + radius / 5)
+        .text("")
+        .style("font-family", "arial")
+        .style("font-size", radius / 10);
+
+      var circ3 = svg2.append("circle")
+        .attr("r", radius / 20)
+        .attr("cx", width / 2 - radius / 5)
+        .attr("cy", height / 2 + radius / 5 - 5)
+        .attr("fill", '#b30000');
+
+      var txt4 = svg2.append("text")
+        .attr("x", width / 2 - radius / 10)
+        .attr("y", height / 2 + 2 * radius / 5)
+        .text("Jail")
+        .style("font-family", "arial")
+        .style("font-size", radius / 10);
+
+      var circ4 = svg2.append("circle")
+        .attr("r", radius / 20)
+        .attr("cx", width / 2 - radius / 5)
+        .attr("cy", height / 2 + 2 * radius / 5 - 5)
+        .attr("fill", 'orange');
+
+
+      // Function resets content in inner circle to legend
+      function resetPieLegend() {
+        txt1.text("Parole")
+          .attr("x", width / 2 - radius / 10)
+          .attr("font-weight", "none")
+          .attr("stroke", "none")
+          .style("text-anchor", "start");
+
+        txt2.text("Probation")
+          .attr("font-weight", "none")
+          .attr("x", width / 2 - radius / 10)
+          .style("text-anchor", "start");
+
+        txt3.text("Prison")
+          .attr("font-weight", "none")
+          .attr("x", width / 2 - radius / 10)
+          .style("text-anchor", "start");
+
+        circ1.attr("visibility", "visible");
+        circ2.attr("visibility", "visible");
+        circ3.attr("visibility", "visible");
+        circ4.attr("visibility", "visible");
+        txt4.attr("visibility", "visible");
+      };
+
+      // Create g object
+      var g = svg2.append("g")
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+      // Declare variable to be used across function calls to store previous clicked slice
+      var prev;
+
+      // Function to update pie chart with state specific data
+      function updateChart(stateSelect) {
+
+        // Reset all previous attributes as well as the pie chart legend
+        d3.select(prev).attr("stroke", "none");
+        d3.select(prev).attr("fill-opacity", 1);
+        resetPieLegend()
+
+        // Filter data by state
+        var file2 = file.filter(function (d) { return d['State'] == stateSelect });
+
+        // Convert data to Number
+        var prison = Number(file2[0]['Prison']);
+        var jail = Number(file2[0]['Jail']);
+        var parole = Number(file2[0]['Parole']);
+        var probation = Number(file2[0]['Probation']);
+        var total = Number(file2[0]['Total']) / 100;
+
+        // Put data in an easily digested data structure
+        var data2 = [{ name: "Prison", value: (prison / total).toFixed(2), original: prison },
+        { name: "Jail", value: (jail / total).toFixed(2), original: jail },
+        { name: "Parole", value: (parole / total).toFixed(2), original: parole },
+        { name: "Probation", value: (probation / total).toFixed(2), original: probation }];
+
+        // Create color scale
+        var ordScale = d3.scaleOrdinal()
+          .domain(data2)
+          .range(['#b30000', 'orange', '#CC5500', 'black']);
+
+
+        // Function that sets actions when you click on a slice
+        function clickDo(d) {
+          // Make the elements used in the legend we don't use in details invisible
+          circ1.attr("visibility", "hidden");
+          circ2.attr("visibility", "hidden");
+          circ3.attr("visibility", "hidden");
+          circ4.attr("visibility", "hidden");
+          txt4.attr("visibility", "hidden");
+
+          // Set the remaining elements to the apropriate values
+          txt1.text(d.target.__data__.data.name)
+            .attr("font-weight", "bold")
+            .attr("stroke", ordScale(d.target.__data__.data.name))
+            .attr("x", width / 2)
+            .style("text-anchor", "middle");
+
+          txt2.text(d3.format(",.2r")(d.target.__data__.data.original) + " per 100,000")
+            .attr("font-weight", "bold")
+            .attr("x", width / 2)
+            .style("text-anchor", "middle");
+
+          txt3.text(d.target.__data__.data.value + "%")
+            .attr("font-weight", "bold")
+            .attr("x", width / 2)
+            .style("text-anchor", "middle");
+
+          // Set and reset attributes so correct slice appears clicked
+          d3.select(this).attr("stroke", "black").attr("fill-opacity", 0.8);
+
+          if (prev != undefined && prev != this) {
+            d3.select(prev).attr("stroke", "none").attr("fill-opacity", 1);
+            prev = this;
+          }
+          else if (prev == this) {
+            d3.select(prev).attr("stroke", "none").attr("fill-opacity", 1);
+            resetPieLegend()
+            prev = undefined;
+          }
+          else {
+            prev = this;
+          }
+
+        };
+
+        // Draw and update Pie Chart
+        var pie = d3.pie().value(function (d) {
+          return d.value;
+        });
+
+        var path = d3.arc()
+          .outerRadius(radius)
+          .innerRadius(radius / 2);
+
+        arc = g.selectAll("path")
+          .data(pie(data2));
+
+        arc.enter()
+          .append("path")
+          .on("click", clickDo)
+          .merge(arc)
+          .attr("d", path)
+          .attr("fill", function (d) { return ordScale(d.data.name); })
+          .transition()
+
+        arc.exit()
+          .remove()
+
+      };
+
+      ////////////////// End Graph 2: Pie Chart ////////////////////////
+      ////////////////// Start Graph 3: Bar Chart ////////////////////////
+
+      var data = await d3.csv('incarceration_data.csv');
+
+      // Declare constants
+      const svgTemp = d3.select("#barSvg")
+      const margin3 = { top: 10, right: 0, bottom: 70, left: 50 },
+        width3 = svgTemp.attr("width") - margin3.left - margin3.right,
+        height3 = svgTemp.attr("height") - margin3.top - margin3.bottom;
+
+      //Create child and adult graph g
+      const gTemp = svgTemp
+        .append("g")
+        .attr("transform", "translate(" + margin3.left + "," + margin3.top + ")");
+
+      // Filter unneeded rows from data 
+      data = data.filter(function (d) {
+        return (d["Variable"] != "Total incarcerated, prison and jail") &
+          (d["Variable"] != "Men in prison") & (d["Variable"] != "Women in prison") & (d["Variable"] != "Juvenile custody rate (per 100,000)")
+      })
+
+      // Seperate remaining rows into juvenile and total data
+      var childData = data.filter(function (d) {
+        return (d["Variable"] != "Black Adult") & (d["Variable"] != "White Adult") & (d["Variable"] != "Hispanic Adult")
+      })
+
+      var adultData = data.filter(function (d) {
+        return (d["Variable"] == "Black Adult") || (d["Variable"] == "White Adult") || (d["Variable"] == "Hispanic Adult")
+      })
+
+      // Get every column value
+      var elements = Object.keys(data[0])
+        .filter(function (d) { return (d != "Variable"); });
+      var selection = elements[0];
+
+      // Create x axis label cropper
+      function cropName(d) {
+        if (d.Variable == "White Adult") { return "White" }
+        else if (d.Variable == "Black Adult") { return "Black" }
+        else if (d.Variable == "Hispanic Adult") { return "Hispanic" }
+        else { return d.Variable }
+      }
+
+      // Find max_y value 
+      var maxY = 0;
+      adultData.forEach(d => {
+        var temp = Number(d["US_Total"]);
+        if (temp > maxY) {
+          maxY = temp
+        }
+      });
+      maxY += 10
+      var maxYChild = 0
+
+
+      // Create axis scales for juveniles and adults
+      var yScale = d3.scaleLinear()
+        .domain([0, maxY])
+        .range([height3, 0]);
+
+      var xScale = d3.scaleBand()
+        .domain(adultData.map(cropName))
+        .range([0, width3]);
+
+
+      // Draw x and y axis
+      var xAxis = d3.axisBottom(xScale);
+      var yAxis = d3.axisLeft(yScale);
+
+      gTemp.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height3 + ")")
+        .call(xAxis)
+        .selectAll("text")
+        .style("font-size", "8px")
+        .style("text-anchor", "end")
+        .attr("dx", "-.8em")
+        .attr("dy", "-.55em")
+        .attr("transform", "rotate(-90)");
+
+      gTemp.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+      // Draw axis label
+      gTemp.append("text")
+        .attr("class", "x label")
+        .attr("text-anchor", "middle")
+        .attr("dx", width3 / 2)
+        .attr("dy", 0)
+        .style("font-size", "15px")
+        .text("");
+
+      // Create bars for jubvenile and all ages
+      gTemp.selectAll("rectangle")
+        .data(adultData)
+        .enter()
+        .append("rect")
+        .attr("class", "rectangle adult")
+        .attr("width", width3 / adultData.length)
+        .attr("height", function (d) {
+          return height3 - yScale(d[selection]);
+        })
+        .attr("x", function (d, i) {
+          return (width3 / adultData.length) * i;
+        })
+        .attr("y", function (d) {
+          return yScale(+d[selection]);
+        })
+        .append("title")
+        .text(function (d) {
+          return cropName(d) + " : " + d[selection] + " per 100,000";
+        });
+
+      gTemp.selectAll("rectangle")
+        .data(childData)
+        .enter()
+        .append("rect")
+        .attr("visibility", "hidden")
+        .attr("class", "rectangle juvenile")
+        .attr("width", width3 / childData.length)
+        .attr("height", function (d) {
+          return height3 - yScale(d[selection]);
+        })
+        .attr("x", function (d, i) {
+          return (width3 / childData.length) * i;
+        })
+        .attr("y", function (d) {
+          return yScale(+d[selection]);
+        })
+        .append("title")
+        .text(function (d) {
+          return d.Variable + " : " + d[selection];
+        });
+
+      // Update bar functions
+      function updateAdultBar(stateSelect) {
+        maxY = 0;
+        adultData.forEach(d => {
+          var temp = Number(d[stateSelect]);
+          if (temp > maxY) {
+            maxY = temp
+          }
+        });
+        maxY += 10
+
+
+        xScale = d3.scaleBand()
+          .domain(adultData.map(cropName))
+          .range([0, width3]);
+
+        yScale = d3.scaleLinear()
+          .domain([0, maxY])
+          .range([height3, 0]);
+
+        yAxis = d3.axisLeft(yScale);
+
+        xAxis = d3.axisBottom(xScale);
+
+        d3.selectAll("g.x.axis").transition()
+          .call(xAxis)
+        d3.selectAll("g.y.axis").transition().call(yAxis);
+
+        d3.selectAll(".rectangle")
+          .transition()
+          .attr("visibility", "visible")
+          .attr("height", function (d) { return height3 - yScale(d[stateSelect]); })
+          .attr("width", width3 / adultData.length)
+          .attr("x", function (d, i) { return (width3 / adultData.length) * i; })
+          .attr("y", function (d) { return yScale(d[stateSelect]); })
+          .select("title")
+          .text(function (d) { return d.Variable + " : " + d[stateSelect]; });
+
+        d3.selectAll(".rectangle.juvenile").attr("visibility", "hidden");
+
+      }
+
+      function updateJuvenileBar(stateSelect) {
+
+        maxYChild = 0;
+        childData.forEach(d => {
+          var temp = Number(d[stateSelect]);
+          if (temp > maxYChild) {
+            maxYChild = temp
+          }
+        });
+        maxYChild += 10
+
+        console.log(childData)
+
+        yScale = d3.scaleLinear()
+          .domain([0, maxYChild])
+          .range([height3, 0]);
+
+        xScale = d3.scaleBand()
+          .domain(childData.map(cropName))
+          .range([0, width3]);
+
+        yAxis = d3.axisLeft(yScale);
+        xAxis = d3.axisBottom(xScale);
+
+        d3.selectAll("g.y.axis").transition().call(yAxis);
+        d3.selectAll("g.x.axis").transition().call(xAxis);
+
+        d3.selectAll(".rectangle.juvenile")
+          .transition()
+          .attr("visibility", "visible")
+          .attr("height", function (d) { return height3 - yScale(d[stateSelect]); })
+          .attr("width", width3 / childData.length)
+          .attr("x", function (d, i) { return (width3 / childData.length) * i; })
+          .attr("y", function (d) { return yScale(d[stateSelect]); })
+          .select("title")
+          .text(function (d) { return d.Variable + " : " + d[stateSelect]; });
+
+        d3.selectAll(".rectangle.adult").attr("visibility", "hidden");
+
+      }
+
+
+      /////////////////////// Start Graph 1: Map Graph ////////////////////////
+
+      // Declaring constants
+      const svg1 = d3.select("#choropleth");
+      const width1 = svg1.attr("width");
+      const height1 = svg1.attr("height");
+      const margin1 = { top: 20, right: 20, bottom: 20, left: 20 };
+      const mapWidth = width1 - margin1.left - margin1.right;
+      const mapHeight = height1 - margin1.top - margin1.bottom;
+      const map = svg1.append("g")
+        .attr("transform", "translate(" + margin1.left + "," + margin1.top + ")");
+
+      // Declaring variable we use to keep track of previously clicked state
+      var prevState;
+      // Declaring variable we use to keep of current state
+      var stateName = "US_Total";
+      // Declaring variable we use to keep tack of whether we are in juvenile or all view for bar graph
+      var isJuvenile = false;
+
+      // Fetching incarceration data for map data
+      var mapData = await d3.json("Incarceration_Data.json", d3.autotype);
+
+      // Fetching topological data for drawing US map
+      const US_map = await d3.json("us_copy.json");
+
+      // Making map functions
+      var states = topojson.feature(US_map, US_map.objects.states);
+      var statesMesh = topojson.mesh(US_map, US_map.objects.states);
+      var projection = d3.geoAlbersUsa().fitSize([mapWidth, mapHeight], states);
+      var path = d3.geoPath().projection(projection);
+
+      // Making dictionaries to store state to data mappings
+      let stateIdCounts = {};
+      let stateIdNames = {};
+      let ID_to_state = {};
+
+      for (let i = 2; i < mapData.length; i++) {
+        stateIdCounts[mapData[i].States] = Number((mapData[i].Total_Incarcerated).replace(/,/g, ''));
+        stateIdNames[Number(mapData[i].ID)] = Number((mapData[i].Total_Incarcerated).replace(/,/g, ''));
+        ID_to_state[Number(mapData[i].ID)] = ((mapData[i].States).replace(/,/g, ''));
+      };
+
+      // Making mouseover functions that handle tooltip for the map
+      var tooltip1 = d3.select("#div1")
+        .append("div")
+        .style("visibility", "hidden")
+        .attr("class", "tooltip")
+        .style("background-color", "white")
+        .style("border", "solid")
+        .style("border-width", "2px")
+        .style("border-radius", "5px")
+        .style("padding", "5px");
+
+      // Making mouseover functions that handle tooltip for the map
+      function mouseover(d) {
+        var stateName = ID_to_state[d3.select(this).datum().id]
+        tooltip1
+          .html("<b>" + stateName + "</b> <br> Total Incarcerated: " + d3.format(",.2r")(stateIdCounts[stateName]))
+          .style("visibility", "visible")
+          .style("position", "absolute")
+          .style("left", (d.pageX + 10) + "px")
+          .style("top", (d.pageY) + "px");
+      }
+
+      function mouseout(d) {
+        tooltip1
+          .style("visibility", "hidden");
+      }
+
+      // Creating color scale
+      const colorScale = d3.scaleQuantile()
+        .domain(Object.values(stateIdCounts))
+        .range(["#fef0d9", "#fdcc8a", "#fc8d59", "#e34a33", "#b30000"]);
+
+      // Drawing map
+      var graticule = d3.geoGraticule10();
+      map.append("path").attr("class", "graticule").attr("d", path(graticule))
+
+      map.selectAll("path.state").data(states.features)
+        .join("path")
+        .attr("class", "state")
+        .attr("d", path)
+        .style("fill", d => colorScale(stateIdNames[d.id]))
+        .on("mouseover", mouseover)
+        .on("mousemove", mouseover)
+        .on("mouseout", mouseout)
+        .on("click", function (d) {
+          if (prevState != undefined && prevState != this) {
+            d3.select(prevState).attr("stroke", "none");
+          }
+
+          stateName = ID_to_state[d3.select(this).datum().id];
+          d3.select("#currState").text(stateName);
+          d3.select(this).attr("stroke", "black").attr("stroke-width", 5);
+
+          updateChart(stateName);
+          updatePicto(stateName);
+
+          if (isJuvenile) {
+            updateJuvenileBar(stateName);
+          }
+          else {
+            updateAdultBar(stateName);
+          }
+
+          prevState = this;
+        });
+
+      map.append("path").datum(statesMesh)
+        .attr("class", "outline")
+        .attr("d", path);
+
+
+      // Declaring variable here so it can be used outside function drawLegend()
+      var stateName;
+
+      /*
+      * Draws the legend used for the Map Graph.
+      * @param legend: The svg object tp draw legend in
+      * @param legendColorScale: The color scale function
+      */
+      function drawLegend(legend, legendColorScale) {
+
+        // Declaring constants
+        const legendWidth = legend.attr("width");
+        const legendHeight = legend.attr("height");
+        const legendMinMax = d3.extent(legendColorScale.domain());
+        const barHeight = 50;
+        const stepSize = 4;
+
+        // Building Scales
+        const pixelScale = d3.scaleLinear()
+          .domain([0, legendWidth - 40])
+          .range([legendMinMax[0] - 1, legendMinMax[1] + 1]);
+        const barScale = d3.scaleLinear()
+          .domain([legendMinMax[0] - 1, legendMinMax[1] + 1])
+          .range([0, legendWidth - 40]);
+        const barAxis = d3.axisBottom(barScale).tickSizeOuter(20);
+
+
+        // Drawing the legend axis 
+        if (legendColorScale.hasOwnProperty('quantiles')) {
+          barAxis.tickValues(legendColorScale.quantiles().concat(legendMinMax));
+        }
+
+        var barLegend = legend.append("g")
+          .attr("class", "colorbar")
+          .attr("transform", "translate(" + (20) + "," + (barHeight + 5) + ")")
+          .call(barAxis);
+
+        barLegend.selectAll("text")
+          .attr("dy", function (d) {
+            if (d == legendMinMax[0] || d == legendMinMax[1]) { return "2.5em" }
+            else { return "0.6em" }
+          });
+
+        // Drawing the legend colorbar
+        let bar = legend.append("g")
+          .attr("transform", "translate(" + (20) + "," + (0) + ")")
+
+        for (let i = 0; i < legendWidth - 40; i = i + stepSize) {
+          bar.append("rect")
+            .attr("x", i)
+            .attr("y", 0)
+            .attr("width", stepSize)
+            .attr("height", barHeight)
+            .style("fill", legendColorScale(pixelScale(i)));
+        }
+
+      }
+
+      drawLegend(d3.select("#colorLegend"), colorScale);
+      ////////////////// End Graph 1: Map Graph ////////////////////////
+
+      // Creating Juvenile to All age switch interaction for bar graph
+      var allAgeButton = d3.select("#allAge")
+        .style("color", "white")
+        .style("background-color", "#b30000")
+        .text("All Ages Selected");
+
+      var juvenileButton = d3.select("#juvenile")
+
+      allAgeButton.on("click", d => {
+        updateAdultBar(stateName);
+        isJuvenile = false;
+
+        juvenileButton.style("color", "black")
+          .style("background-color", "#e7e7e7")
+          .text("Select Juveniles Only");
+
+        allAgeButton.style("color", "white")
+          .style("background-color", "#b30000")
+          .text("All Ages Selected");
+      });
+
+      juvenileButton.on("click", d => {
+        updateJuvenileBar(stateName);
+        isJuvenile = true;
+
+        juvenileButton.style("color", "white")
+          .style("background-color", "#b30000")
+          .text("Juveniles Selected");
+
+        allAgeButton.style("color", "black")
+          .style("background-color", "#e7e7e7")
+          .text("Select All Ages");
+      })
+
+
+      // Calling intial state of detail charts
+      updateChart("US_Total");
+      updatePicto("US_Total");
+    }
+    requestData();
+
+  </script>
+</body>
+
+</html>
