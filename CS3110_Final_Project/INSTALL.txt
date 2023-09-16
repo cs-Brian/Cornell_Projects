@@ -1,0 +1,66 @@
+HOW TO PLAY?:
+  Run 'make play' in project directory.
+    - Or, if this doesn't work at first, perhaps run 'make build' and then try 
+    'make play' again.
+
+VALID INPUTS:
+  For any questions with Yes or No responses: 'y', 'Y', 'n', 'N'
+
+  To Roll: 'r' or 'R'
+
+  To Build Houses/Hotels: 'b' or 'B': 
+     - To cancel, enter 'nvm' or 'NVM'
+     - The valid input for a property color must have the first letter be
+      uppercase, the rest of the word must be lowercase
+      - Properties must be spelled properly with correct spacing, 
+      case does not matter"
+
+  To Sell Houses/Hotels: 'h' or 'H':
+      - To cancel, enter 'nvm' or 'NVM'
+      - The valid input for a property color must have the first letter be
+      uppercase, the rest of the word must be lowercase
+      - Properties must be spelled properly with correct spacing, 
+      case does not matter
+
+  To Mortage: 'm' or 'M':
+      - Once a player decides to mortgage, they can not back out
+      - Properties must be spelled properly with correct spacing, 
+      case does not matter
+
+  To Lift A Mortgage: 'l' or 'L': 
+      - Once a player decides to lift a mortgage, they can not back out
+      - Properties must be spelled properly with correct spacing, 
+      case does not matter
+  
+  To View Available Properties: 'a' or 'A' 
+  To View Owned Properties: 'o' or 'O' 
+  To View Stats: 's' or 'S'
+  To View Gameboard: 'g' or 'G'
+  To Withdraw: 'w' or 'W' 
+  TO Quit: q' or 'Q'
+
+
+TROUBLESHOOTING:
+  ~
+  When trying to run 'make play', if you get some Sys error saying that 
+  main.byte is not found / "No such file or directory found", perform
+  the following steps: 
+
+  1. Delete main.byte from the main/final_project directory
+  2. In the _build directory, delete all files with names 
+  starting with "main" (BESIDES THE ONES THAT START WITH "main.mli")
+  3. Run 'make build'
+  4. Try 'make play' again. Should be working after this.
+
+  ~
+  When trying to run 'make test', if you get some Sys error saying that 
+  monopoly_test.byte is not found / "No such file or directory found", perform
+  the following steps: 
+
+  1. Delete monopoly_test.byte from the main/final_project directory
+  2. In the _build directory, delete all files with names 
+  starting with "monopoly_test"
+  3. Run 'make build'
+  4. Try 'make test' again. Should be working after this.
+
+QUIT GAME AT ANY TIME BY PRESSING CTRL + C ON MAC

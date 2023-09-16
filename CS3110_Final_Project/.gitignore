@@ -1,0 +1,17 @@
+# Ignore Mac system files
+.DS_store
+
+# ocaml
+*.cmo
+*.cma
+*.cmi
+*.out
+*.cmx
+*.native
+*.byte
+_build
+
+# assignment
+doc.private
+doc.public
+monopoly.zip
